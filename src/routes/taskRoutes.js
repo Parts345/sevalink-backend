@@ -3,7 +3,7 @@ import {
   fetchTasks,
   getVolunteerMatches,
   postTask,
-  acceptTask   // ✅ IMPORTANT: added this
+  acceptTask
 } from "../controllers/taskController.js";
 
 import { requireAuth, requireRole } from "../middleware/authMiddleware.js";
@@ -25,21 +25,12 @@ router.get(
   getVolunteerMatches
 );
 
-router.post(
-  "/:taskId/accept",
-  requireAuth,
-  requireRole("volunteer"),
-  acceptTask
-);
+// 🔥 DEMO MODE: remove auth
+router.post("/:taskId/accept", acceptTask);
 
 /* =========================
    NGO / VOLUNTEER ROUTES
 ========================= */
-router.post(
-  "/",
-  // requireAuth,                <-- Comment this out!
-  // requireRole("ngo", "volunteer"), <-- Comment this out too!
-  postTask
-);
+router.post("/", postTask);
 
 export default router;

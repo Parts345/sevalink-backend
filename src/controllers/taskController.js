@@ -2,12 +2,10 @@ import Location from "../models/Location.js";
 import Task from "../models/Task.js";
 import { buildTaskMatch } from "../services/matchingService.js";
 
-
 /* =========================
    CREATE TASK (NGO)
 ========================= */
 export async function postTask(req, res, next) {
-  console.log("🚨 REQUEST ARRIVED IN BACKEND:", req.body);
   try {
     const {
       title,
@@ -20,21 +18,9 @@ export async function postTask(req, res, next) {
     } = req.body;
 
     if (!title || !description || !volunteersNeeded || !location?.label || !location?.city) {
-      return next(
-        Object.assign(
-          new Error("title, description, volunteersNeeded, and location details are required"),
-          { statusCode: 400 }
-        )
-      );
-    }
-
-    if (
-      !Number.isFinite(location?.coordinates?.lat) ||
-      !Number.isFinite(location?.coordinates?.lng)
-    ) {
-      return next(
-        Object.assign(new Error("location coordinates are required"), { statusCode: 400 })
-      );
+      return res.status(400).json({
+        message: "Missing required fields"
+      });
     }
 
     const savedLocation = await Location.create(location);
@@ -47,13 +33,12 @@ export async function postTask(req, res, next) {
       volunteersNeeded,
       urgency,
       location: savedLocation._id,
-      // ✅ FIX: Give Mongoose a valid 24-character fake ID to pass validation!
-      postedBy: req?.user?._id || "507f1f77bcf86cd799439011" 
+      postedBy: "507f1f77bcf86cd799439011" // demo user
     });
 
     const populatedTask = await Task.findById(task._id)
       .populate("location")
-      .populate("postedBy", "name ngoName email");
+      .populate("postedBy");
 
     res.status(201).json({
       message: "Task created successfully",
@@ -69,29 +54,13 @@ export async function postTask(req, res, next) {
 ========================= */
 export async function fetchTasks(req, res, next) {
   try {
-    const { skill, city, status = "open" } = req.query;
-    const query = {};
-
-    if (status) query.status = status;
-
-    if (skill) {
-      query.requiredSkills = { $in: [skill] };
-    }
-
-    const tasks = await Task.find(query)
+    const tasks = await Task.find({ status: "open" })
       .populate("location")
-      .populate("postedBy", "name ngoName email");
-
-    const filteredTasks = city
-      ? tasks.filter(
-          (task) =>
-            task.location?.city?.toLowerCase() === city.toLowerCase()
-        )
-      : tasks;
+      .populate("postedBy");
 
     res.json({
-      count: filteredTasks.length,
-      tasks: filteredTasks
+      count: tasks.length,
+      tasks
     });
   } catch (error) {
     next(error);
@@ -99,21 +68,20 @@ export async function fetchTasks(req, res, next) {
 }
 
 /* =========================
-   AI MATCHING (VOLUNTEER)
+   MATCHING (OPTIONAL)
 ========================= */
 export async function getVolunteerMatches(req, res, next) {
   try {
     const tasks = await Task.find({ status: "open" })
       .populate("location")
-      .populate("postedBy", "name ngoName email");
+      .populate("postedBy");
 
-    const matches = tasks
-      .map((task) => buildTaskMatch(req.user, task))
-      .sort((a, b) => b.matchScore - a.matchScore);
+    const matches = tasks.map((task) => ({
+      ...task.toObject(),
+      matchScore: 80 // demo value
+    }));
 
     res.json({
-      volunteerId: req.user._id,
-      count: matches.length,
       matches
     });
   } catch (error) {
@@ -122,11 +90,11 @@ export async function getVolunteerMatches(req, res, next) {
 }
 
 /* =========================
-   ACCEPT TASK
+   ACCEPT TASK (FIXED)
 ========================= */
 export async function acceptTask(req, res, next) {
   try {
-    const { taskId } = req.params; // ✅ FIXED: Must match route param /:taskId/accept
+    const { taskId } = req.params;
 
     const task = await Task.findById(taskId);
 
@@ -134,27 +102,25 @@ export async function acceptTask(req, res, next) {
       return res.status(404).json({ message: "Task not found" });
     }
 
-    if (!task.filledSlots) {
-      task.filledSlots = 0;
+    if (!task.volunteers) task.volunteers = [];
+    if (!task.filledSlots) task.filledSlots = 0;
+
+    // 🔥 DEMO USER (NO AUTH REQUIRED)
+    const userId = "507f1f77bcf86cd799439012";
+
+    if (task.volunteers.includes(userId)) {
+      return res.status(400).json({
+        message: "Already accepted"
+      });
     }
 
     if (task.filledSlots >= task.volunteersNeeded) {
       return res.status(400).json({
-        message: "Task is already full"
+        message: "Task full"
       });
     }
 
-    if (!task.volunteers) {
-      task.volunteers = [];
-    }
-
-    if (task.volunteers.includes(req.user._id)) {
-      return res.status(400).json({
-        message: "You already accepted this task"
-      });
-    }
-
-    task.volunteers.push(req.user._id);
+    task.volunteers.push(userId);
     task.filledSlots += 1;
 
     if (task.filledSlots >= task.volunteersNeeded) {
@@ -163,13 +129,9 @@ export async function acceptTask(req, res, next) {
 
     await task.save();
 
-    const updatedTask = await Task.findById(task._id)
-      .populate("location")
-      .populate("postedBy", "name ngoName email");
-
     res.json({
       message: "Task accepted successfully",
-      task: updatedTask
+      task
     });
   } catch (error) {
     next(error);
