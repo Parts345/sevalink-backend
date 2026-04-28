@@ -26,8 +26,8 @@ app.use(express.json());
 // =======================
 const allowedOrigins = [
   "http://localhost:5173",
-  process.env.CLIENT_URL,
-].filter(Boolean);
+  "https://sevalink-frontend-git-main-parts345s-projects.vercel.app"
+];
 
 app.use(
   cors({
@@ -37,7 +37,7 @@ app.use(
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       } else {
-        console.log("❌ Blocked by CORS:", origin);
+        console.log("Blocked by CORS:", origin);
         return callback(new Error("CORS not allowed"));
       }
     },
