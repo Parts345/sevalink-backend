@@ -24,26 +24,10 @@ app.use(express.json());
 // =======================
 // 🔹 CORS (SAFE + WORKING)
 // =======================
-const allowedOrigins = [
-  "http://localhost:5173",
-  "https://sevalink-frontend-git-main-parts345s-projects.vercel.app"
-];
-
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin) return callback(null, true);
-
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      } else {
-        console.log("Blocked by CORS:", origin);
-        return callback(new Error("CORS not allowed"));
-      }
-    },
-    credentials: true,
-  })
-);
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
 
 // =======================
 // 🔹 MONGODB CONNECTION
