@@ -3,10 +3,17 @@ import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
 
+// 🔹 ROUTES (MAKE SURE THESE FILES EXIST)
+import authRoutes from "./routes/authRoutes.js";
+import taskRoutes from "./routes/taskRoutes.js";
+
 dotenv.config();
 
 const app = express();
 
+// =======================
+// 🔹 TRUST PROXY (for Render)
+/// =======================
 app.set("trust proxy", 1);
 
 // =======================
@@ -14,6 +21,9 @@ app.set("trust proxy", 1);
 // =======================
 app.use(express.json());
 
+// =======================
+// 🔹 CORS (SAFE + WORKING)
+// =======================
 const allowedOrigins = [
   "http://localhost:5173",
   process.env.CLIENT_URL,
@@ -27,6 +37,7 @@ app.use(
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       } else {
+        console.log("❌ Blocked by CORS:", origin);
         return callback(new Error("CORS not allowed"));
       }
     },
@@ -41,7 +52,6 @@ const connectDB = async () => {
   try {
     const conn = await mongoose.connect(process.env.MONGO_URI, {
       dbName: "sevalink",
-      
     });
 
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
@@ -54,9 +64,8 @@ const connectDB = async () => {
 // =======================
 // 🔹 ROUTES
 // =======================
-// import routes here
-// app.use("/api/auth", authRoutes);
-// app.use("/api/tasks", taskRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/tasks", taskRoutes);
 
 // =======================
 // 🔹 HEALTH ROUTE
@@ -96,7 +105,7 @@ const startServer = async () => {
 startServer();
 
 // =======================
-// 🔹 SHUTDOWN
+// 🔹 GRACEFUL SHUTDOWN
 // =======================
 process.on("SIGINT", async () => {
   console.log("🛑 Shutting down server...");
